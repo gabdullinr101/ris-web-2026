@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { addBooking } from '../bookingsStore'
+import { createBooking, errorMessage } from '../api/bookings'
 
 const router = useRouter()
 
@@ -19,6 +19,12 @@ const errors = ref({
   description: '',
 })
 
+// Общее сообщение над кнопкой: «Проверьте поля», «Нет связи с сервером» и т. п.
+const formError = ref('')
+
+// true, пока запрос на создание не завершился
+const isSubmitting = ref(false)
+
 // Ссылка на первое поле, чтобы поставить в него курсор при открытии страницы
 const titleInput = ref(null)
 
@@ -26,13 +32,19 @@ onMounted(() => {
   titleInput.value?.focus()
 })
 
-function onCreate() {
+async function onCreate() {
+  // Защита от двойной отправки: второй Enter или клик во время запроса ничего не делает
+  if (isSubmitting.value) {
+    return
+  }
+
   // trim обрезает пробелы по краям, поэтому строка из одних пробелов не пройдёт
   const title = form.value.title.trim()
   const hallId = form.value.hallId
   const description = form.value.description.trim()
 
   errors.value = { title: '', hallId: '', description: '' }
+  formError.value = ''
 
   if (title.length < 5 || title.length > 80) {
     errors.value.title = 'Вид тренировки: от 5 до 80 символов'
@@ -44,15 +56,31 @@ function onCreate() {
     errors.value.description = 'Описание: от 10 до 500 символов'
   }
 
-  // Если есть хотя бы одна ошибка, выходим до добавления записи
+  // Если есть хотя бы одна ошибка, выходим до запроса
   if (errors.value.title || errors.value.hallId || errors.value.description) {
+    formError.value = 'Проверьте поля'
     return
   }
 
-  addBooking({ title, hallId, description })
+  isSubmitting.value = true
+  try {
+    // id, number и status приходят в ответе, форма их не придумывает
+    await createBooking({ title, hallId, description })
 
-  form.value = { title: '', hallId: 0, description: '' }
-  router.push('/')
+    form.value = { title: '', hallId: 0, description: '' }
+    // Список на странице / сам загрузит свежие данные вместе с новой записью
+    router.push('/')
+  } catch (error) {
+    formError.value = errorMessage(error)
+    // При ответе 400 сервер присылает ошибки по полям — показываем их под полями
+    if (error.status === 400 && error.data?.errors) {
+      errors.value = { ...errors.value, ...error.data.errors }
+    }
+    // Поля не очищаем: человек исправит и отправит ещё раз
+  } finally {
+    // Снимаем блокировку и после успеха, и после ошибки
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -71,7 +99,11 @@ function onCreate() {
     <textarea id="description" v-model="form.description" name="description" rows="4"></textarea>
     <p v-if="errors.description" class="error">{{ errors.description }}</p>
 
-    <button type="submit">Создать</button>
+    <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
+
+    <button type="submit" :disabled="isSubmitting">
+      {{ isSubmitting ? 'Создаём…' : 'Создать' }}
+    </button>
   </form>
 </template>
 
@@ -80,5 +112,19 @@ function onCreate() {
   margin: -10px 0 16px;
   font-size: 14px;
   color: #b3261e;
+}
+
+.form-error {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  color: #8c1d18;
+  background: #fdecea;
+  border: 1px solid #f1b5b0;
+  border-radius: 6px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

@@ -432,3 +432,6 @@ FodyWeavers.xsd
 node_modules/
 dist/
 .DS_Store
+
+# ЛР6: локальные настройки клиента (в Git только .env.example)
+.env
