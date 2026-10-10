@@ -427,3 +427,8 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# ЛР3: клиент на Vue (Vite)
+node_modules/
+dist/
+.DS_Store

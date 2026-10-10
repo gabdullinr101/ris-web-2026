@@ -1,0 +1,15 @@
+/* Общие стили всего приложения. Стили экранов лежат в App.vue (scoped). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1c2530;
+  background: #f3f5f8;
+}
