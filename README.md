@@ -176,3 +176,6 @@ psql -U postgres -d fitness_sql -f db/queries.sql
 - [Проверка трёх критериев на стенде](docs/acceptance-check.md)
 - [Известные дефекты](docs/known-defects.md)
 - [Сквозная сборка (ЛР12)](docs/reports/lab-12.md)
+- [Предзащита: стенд и план демо](docs/predefense-check.md)
+- [Пояснительная записка (рабочий вариант)](docs/kursovaya-zapiska.md)
+- [Предзащита (ЛР13)](docs/reports/lab-13.md)
