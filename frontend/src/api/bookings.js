@@ -3,9 +3,9 @@ import { send, unwrap } from './http'
 
 export { errorMessage } from './http'
 
-// true - отвечает mock (без HTTP), false - настоящий сервер.
-// Задаётся в .env: VITE_USE_MOCK=true или false. После правки .env перезапустить npm run dev.
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
+// Рабочий режим - настоящий сервер. Учебный mock из ЛР6 включается в .env: VITE_USE_MOCK=true.
+// После правки .env перезапустить npm run dev.
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 // Список записей
 export async function getBookings() {
@@ -19,4 +19,16 @@ export async function createBooking(body) {
     ? await mockCreateBooking(body)
     : await send('POST', '/api/bookings', body)
   return unwrap(response)
+}
+
+// Назначение и смена статуса - только на сервере (mock их не умеет).
+
+// PATCH /api/bookings/{id}/assignee - назначить тренера, статус не меняется
+export async function assignBooking(id, assigneeUserId) {
+  return unwrap(await send('PATCH', `/api/bookings/${id}/assignee`, { assigneeUserId }))
+}
+
+// PATCH /api/bookings/{id}/status - сменить статус, тренер не меняется
+export async function changeBookingStatus(id, status) {
+  return unwrap(await send('PATCH', `/api/bookings/${id}/status`, { status }))
 }

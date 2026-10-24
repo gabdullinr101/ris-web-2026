@@ -4,44 +4,24 @@
 Студент: Габдуллин Радик Азатович, группа: ТРИС-1-23
 Тема: Разработка веб-сервиса управления бронированием тренировок и занятостью тренеров
 Статус темы: на проверке (заявка в docs/project-proposal.md)
-Стек: Vue 3 + ASP.NET Core + PostgreSQL (клиент - в папке frontend, сервер - в папке backend, база позже)
 
+Фитнес-клуб: администратор ресепшн записывает клиента на тренировку и назначает тренера, тренер подтверждает и проводит свои тренировки, управляющий видит все записи.
 
-## Запуск клиента
+## Стек
 
-Нужен Node.js LTS (22.18 или новее). Проверка: `node -v` и `npm -v`.
+| Узел | Технологии | Адрес |
+|------|------------|-------|
+| Клиент (`frontend`) | Vue 3 + Vite, JavaScript, vue-router; Node.js 22.18+ | `http://localhost:5173` |
+| Сервер (`backend`) | ASP.NET Core Web API, .NET 8, EF Core 8 + Npgsql | `http://localhost:5000` |
+| База | PostgreSQL 14+ (проверено на 16) | локальный порт, обычно 5432 |
 
-```bash
-cd frontend
-copy .env.example .env
-npm install
-npm run dev
-```
+Браузер ходит только в API, в базу - только сервер (docs/architecture.md).
 
-Вторая строка создаёт локальный файл настроек `.env` (в Linux и macOS вместо `copy` - `cp`):
+## Подготовка (один раз)
 
-- `VITE_API_BASE_URL=http://localhost:5000` - адрес сервера;
-- `VITE_USE_MOCK=true` - список и создание отвечает учебный mock, сервер не нужен; `false` - настоящий сервер на :5000 (нужно запустить backend).
+Проверить инструменты: `node -v`, `npm -v`, `dotnet --version`. Должен быть установлен PostgreSQL с pgAdmin.
 
-Вход (`/login`) всегда идёт на настоящий сервер. После правки `.env` нужно перезапустить `npm run dev`.
-
-Открыть адрес Vite, обычно `http://localhost:5173`.
-
-Адреса экранов (меню в шапке или вручную в адресной строке):
-
-- `http://localhost:5173/` - список записей на тренировки;
-- `http://localhost:5173/new` - форма новой записи;
-- `http://localhost:5173/login` - вход.
-
-С `VITE_USE_MOCK=true` список и создание работают через учебный mock (`frontend/src/api/mockBookings.js`): данные живут в памяти вкладки и после F5 пропадают. С `VITE_USE_MOCK=false` клиент работает с сервером и базой.
-
-## Запуск сервера
-
-Нужны .NET SDK 8 или новее (`dotnet --version`) и PostgreSQL (см. раздел «База данных» ниже). С ЛР10 сервер хранит записи в PostgreSQL через EF Core.
-
-### Подготовка (один раз)
-
-1. Инструмент миграций:
+1. Инструмент миграций EF Core:
 
    ```bash
    dotnet tool install --global dotnet-ef --version 8.0.*
@@ -56,98 +36,125 @@ npm run dev
    dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=fitness_bookings;Username=postgres;Password=ВАШ_ПАРОЛЬ"
    ```
 
-   В `appsettings.json` лежит та же строка без пароля - как пример.
+   В `backend/appsettings.json` лежит та же строка без пароля - как пример.
 
-3. Если база `fitness_bookings` уже создана скриптами ЛР9, удалите её (pgAdmin → правой кнопкой по базе → Delete, или `dropdb -U postgres fitness_bookings`). Миграция создаст базу и таблицы сама.
-
-4. Применить миграции:
+3. Создать таблицы миграциями (база `fitness_bookings` создастся сама):
 
    ```bash
    cd backend
    dotnet ef database update
    ```
 
-   Создаются таблицы `halls`, `users`, `bookings` и справочные строки: 3 зала и 4 пользователя.
+   Применяются `InitialCreate` (таблицы, 3 зала, 4 пользователя) и `AddUserPasswordHashes` (hash учебных паролей). Если база `fitness_bookings` уже создана скриптами ЛР9 из папки `db`, сначала удалите её (pgAdmin → правой кнопкой по базе → Delete), иначе миграция остановится на `relation "halls" already exists`.
 
-### Запуск
+4. Настройки клиента:
+
+   ```bash
+   cd frontend
+   copy .env.example .env
+   npm install
+   ```
+
+   В Linux и macOS вместо `copy` - `cp`. В `.env`: `VITE_API_BASE_URL=http://localhost:5000` и `VITE_USE_MOCK=false` (рабочий режим - настоящий сервер; `true` включает учебный mock из ЛР6 без сервера, в нём работают только список и создание).
+
+## Запуск
+
+Два терминала.
+
+Первый - сервер:
 
 ```bash
 cd backend
-dotnet restore
 dotnet run
 ```
 
-В терминале должно появиться `Now listening on: http://localhost:5000`. Остановить сервер - `Ctrl+C`.
+Ждать строку `Now listening on: http://localhost:5000`. Swagger: `http://localhost:5000/swagger`, проверка живости: `http://localhost:5000/health` → `ok`.
 
-- API: `http://localhost:5000`
-- Swagger (список адресов с кнопкой «Try it out», работает в режиме Development): `http://localhost:5000/swagger`
-- Проверка живости: `http://localhost:5000/health` - ответ `ok`
-- Сведения о приложении: `http://localhost:5000/info` - имя, среда, версия
+Второй - клиент:
 
-### Записи на тренировку
+```bash
+cd frontend
+npm run dev
+```
+
+Открыть `http://localhost:5173`. После правки `.env` перезапустить `npm run dev`.
+
+## Учебные логины
+
+Пароли только для этого проекта, в базе хранится их hash.
+
+| Логин | Пароль | Кто | Что может |
+|-------|--------|-----|-----------|
+| `admin` | `Fitness2026!` | Анна Ковалёва, администратор ресепшн | создаёт записи, назначает тренера новой записи |
+| `trainer` | `Fitness2026!` | Илья Соколов, тренер | видит свои записи, подтверждает, проводит, отменяет |
+| `trainer2` | `Fitness2026!` | Марат Хайруллин, тренер | то же, что `trainer` |
+| `manager` | `Fitness2026!` | Ольга Петрова, управляющий клуба | видит все записи, назначает и переназначает тренера |
+
+Полная таблица прав - `docs/role-matrix.md`.
+
+## Проверочный сценарий
+
+1. Войти `admin` (`/login`).
+2. «Создать» → вид тренировки, номер зала (1 - тренажёрный, 2 - единоборств, 3 - групповых программ), описание → «Создать». В списке новая строка: запишите её `id` и номер `БР-…`, статус «Новая».
+3. В строке выбрать тренера «Илья Соколов» → «Назначить». Статус остаётся «Новая».
+4. Выйти (`Выход` → «Выйти»), войти `trainer`. В списке только его записи. В строке нажать «Подтвердить» - статус «Подтверждена тренером».
+5. Тот же `id` в базе (pgAdmin → Query Tool на базе `fitness_bookings`):
+
+   ```sql
+   SELECT id, number, title, status, assignee_user_id FROM bookings WHERE id = 1;
+   ```
+
+6. Остановить сервер (`Ctrl+C`), снова `dotnet run`, обновить список - запись на месте.
+
+Подробно, с тем, где смотреть каждый шаг, - `docs/acceptance-check.md`.
+
+## API
 
 | Метод и путь | Успех | Отказы |
 |--------------|-------|--------|
-| `GET /api/bookings` | 200, массив или `[]` | - |
-| `GET /api/bookings/{id}` | 200 | 404 |
-| `POST /api/bookings` | 201, `id`, `number`, `status: New` | 400 |
-| `PATCH /api/bookings/{id}/assignee` | 200, статус не меняется | 400, 404, 409 |
-| `PATCH /api/bookings/{id}/status` | 200 | 400, 404, 409 |
+| `POST /api/auth/login` | 200, пользователь; cookie входа | 401 |
+| `POST /api/auth/logout` | 200 | - |
+| `GET /api/auth/me` | 200 | 401 |
+| `GET /api/users/trainers` | 200 | 401, 403 |
+| `GET /api/bookings` | 200, массив или `[]` | 401 |
+| `GET /api/bookings/{id}` | 200 | 401, 403, 404 |
+| `POST /api/bookings` | 201, `id`, `number`, `status: New` | 400, 401, 403 |
+| `PATCH /api/bookings/{id}/assignee` | 200, статус не меняется | 400, 401, 403, 404, 409 |
+| `PATCH /api/bookings/{id}/status` | 200 | 400, 401, 403, 404, 409 |
 
-Имена как в ЛР2 (docs/api-contract.md): ресурс `bookings`, поля `title`, `hallId`, `description`, `assigneeUserId`, `status`. `DELETE` нет: отмена - статус `Cancelled`.
+Подробно - docs/api-contract.md. `DELETE` нет: отмена - статус `Cancelled`.
 
-Без входа все адреса `/api/bookings` отвечают 401. Права по ролям - в `docs/role-matrix.md` (ЛР11).
+Вход - через cookie `fitness_auth` (HttpOnly), не JWT. CORS разрешён только для `http://localhost:5173` с cookie.
 
-Залы: 1 - тренажёрный, 2 - единоборств, 3 - групповых программ.
+Коллекция запросов: `docs/api-collection/bookings.postman_collection.json` (Postman: Import → файл; Insomnia: Import → From File). Базовый URL - переменная `baseUrl` = `http://localhost:5000`. Запускать по порядку: запросы «Вход» ставят cookie, следующие идут от имени этого пользователя.
 
-Коллекция запросов для проверки: `docs/api-collection/bookings.postman_collection.json`. В Postman: Import → выбрать файл; в Insomnia: Import → From File. Базовый URL в переменной `baseUrl` - `http://localhost:5000`. Запускать по порядку: запросы «Вход» ставят cookie, следующие идут от имени этого пользователя.
+Учебный сбой для проверки лога (ЛР8): запустить сервер с переменной окружения `Debug__FailCreate=true` (в cmd: `set Debug__FailCreate=true`, затем `dotnet run`). Работает только в Development: `POST /api/bookings` отвечает 500 «Не удалось обработать запрос», в терминале сервера - строка `CreateBooking failed; hallId=…; error=InvalidOperationException`.
 
-### Вход и права (ЛР11)
+## База данных: скрипты ЛР9
 
-Вход - через cookie (не JWT): `POST /api/auth/login` с логином и паролем, сервер ставит cookie `fitness_auth` (HttpOnly), браузер сам присылает её дальше. Выход - `POST /api/auth/logout`, кто вошёл - `GET /api/auth/me`.
+Папка `db` - учебная SQL-справка по схеме, рабочую базу создаёт миграция.
 
-Учебные учётки (пароли только для этого проекта):
+- `schema.sql` - таблицы `halls`, `users`, `bookings`, ключи, CHECK статусов, индексы;
+- `seed.sql` - 3 зала, 4 пользователя, 8 записей во всех четырёх статусах;
+- `queries.sql` - фильтр с сортировкой, JOIN, GROUP BY и проверка ограничений (последние три вставки должны завершиться ошибкой - так задумано).
 
-| Логин | Пароль | Кто |
-|-------|--------|-----|
-| `admin` | `Fitness2026!` | Анна Ковалёва, администратор ресепшн - создаёт и назначает |
-| `trainer` | `Fitness2026!` | Илья Соколов, тренер - двигает статус своих записей |
-| `trainer2` | `Fitness2026!` | Марат Хайруллин, тренер |
-| `manager` | `Fitness2026!` | Ольга Петрова, управляющий клуба - назначает и переназначает |
-
-В базе пароли хранятся только в виде hash (`users.password_hash`), их кладёт миграция `AddUserPasswordHashes`.
-
-Кратко: без входа - 401; вошёл, но действие не твоё (тренер создаёт запись, тренер двигает чужую запись, администратор меняет статус) - 403. Полная таблица - `docs/role-matrix.md`.
-
-Учебный сбой для проверки лога: запустить сервер с переменной окружения `Debug__FailCreate=true` (в cmd: `set Debug__FailCreate=true` перед `dotnet run`). Работает только в Development. Тогда `POST /api/bookings` отвечает 500 «Не удалось обработать запрос», а в терминале сервера появляется строка `CreateBooking failed; hallId=2; error=InvalidOperationException`. В обычном запуске выключен.
-
-Ограничения:
-
-- `/health` проверяет только, что процесс сервера жив, и не доказывает, что создание записи работает;
-- клиент Vue к серверу ещё не подключён (по-прежнему работает на mock), стыковка - в ЛР12.
-
-## База данных (ЛР9)
-
-Нужен PostgreSQL 14 или новее (pgAdmin ставится вместе с ним). Пароль пользователя `postgres` - тот, что задали при установке; в файлы проекта его не кладём.
-
-Скрипты в папке `db`:
-
-- `schema.sql` - таблицы `halls`, `users`, `bookings`, ключи, CHECK статусов, индексы. Можно прогонять повторно: в начале удаляет только свои три таблицы;
-- `seed.sql` - учебные данные: 3 зала, 4 пользователя, 8 записей во всех четырёх статусах;
-- `queries.sql` - запросы: фильтр с сортировкой, JOIN, GROUP BY и проверка ограничений (последние три вставки должны завершиться ошибкой - так и задумано).
-
-Из корня репозитория (если `psql` не находится, укажите полный путь, например `"C:\Program Files\PostgreSQL\16\bin\psql.exe"`):
+Прогнать на отдельной учебной базе (пароль `postgres` спросит сама команда; если `psql` не находится, укажите полный путь, например `"C:\Program Files\PostgreSQL\16\bin\psql.exe"`, и свой порт через `-p`):
 
 ```bash
-createdb -U postgres fitness_bookings
-psql -U postgres -d fitness_bookings -f db/schema.sql
-psql -U postgres -d fitness_bookings -f db/seed.sql
-psql -U postgres -d fitness_bookings -f db/queries.sql
+createdb -U postgres fitness_sql
+psql -U postgres -d fitness_sql -f db/schema.sql
+psql -U postgres -d fitness_sql -f db/seed.sql
+psql -U postgres -d fitness_sql -f db/queries.sql
 ```
 
-В pgAdmin: создать базу `fitness_bookings` → Query Tool → открыть и выполнить по очереди `schema.sql`, `seed.sql`, `queries.sql`.
+Имена таблиц и столбцов совпадают с миграцией, поэтому `queries.sql` работает и на базе сервера `fitness_bookings`.
 
-Скрипты `db` - учебная справка по схеме (ЛР9). Рабочую базу для сервера создаёт миграция EF Core (см. «Запуск сервера»); имена таблиц и столбцов у них одинаковые, поэтому `queries.sql` можно выполнять и на базе сервера.
+## Ограничения
+
+- `/health` показывает только, что процесс сервера жив, и не проверяет создание записей и базу;
+- регистрации и смены пароля нет - две роли и четыре учебные учётки заведены миграцией;
+- в учебном mock (`VITE_USE_MOCK=true`) нет входа, назначения и смены статуса;
+- остальное - `docs/known-defects.md`.
 
 ## Документы
 - [Заявка на тему](docs/project-proposal.md)
@@ -166,3 +173,6 @@ psql -U postgres -d fitness_bookings -f db/queries.sql
 - [Сервер: EF Core и PostgreSQL (ЛР10)](docs/reports/lab-10.md)
 - [Матрица ролей](docs/role-matrix.md)
 - [Вход и права (ЛР11)](docs/reports/lab-11.md)
+- [Проверка трёх критериев на стенде](docs/acceptance-check.md)
+- [Известные дефекты](docs/known-defects.md)
+- [Сквозная сборка (ЛР12)](docs/reports/lab-12.md)

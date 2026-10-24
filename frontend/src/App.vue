@@ -21,7 +21,7 @@ onMounted(loadCurrentUser)
 
 <style scoped>
 .page {
-  max-width: 860px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 24px 16px 48px;
 }

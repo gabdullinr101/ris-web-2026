@@ -5,6 +5,9 @@ import { me } from './api/auth'
 // Это только для экрана (показать имя, спрятать лишние кнопки). Права всё равно проверяет сервер.
 export const currentUser = ref(null)
 
+// true, когда сервер уже ответил, вошёл ли пользователь (чтобы экран входа не мигал формой)
+export const authChecked = ref(false)
+
 export const roleNames = {
   Admin: 'администратор',
   Trainer: 'тренер',
@@ -17,5 +20,7 @@ export async function loadCurrentUser() {
     currentUser.value = await me()
   } catch {
     currentUser.value = null
+  } finally {
+    authChecked.value = true
   }
 }

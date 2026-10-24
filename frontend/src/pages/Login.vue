@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, logout } from '../api/auth'
 import { errorMessage } from '../api/http'
-import { currentUser, roleNames } from '../authStore'
+import { currentUser, authChecked, roleNames } from '../authStore'
 
 const router = useRouter()
 
@@ -14,6 +14,12 @@ const isSubmitting = ref(false)
 const loginInput = ref(null)
 
 onMounted(() => {
+  loginInput.value?.focus()
+})
+
+// Форма появляется после проверки входа - тогда и ставим курсор в первое поле
+watch(authChecked, async () => {
+  await nextTick()
   loginInput.value?.focus()
 })
 
@@ -54,7 +60,9 @@ async function onLogout() {
 <template>
   <h1>Вход в систему</h1>
 
-  <div v-if="currentUser" class="signed-in">
+  <p v-if="!authChecked">Проверяем вход…</p>
+
+  <div v-else-if="currentUser" class="signed-in">
     <p>
       Вы вошли как {{ currentUser.fullName }} ({{ roleNames[currentUser.role] }}).
     </p>

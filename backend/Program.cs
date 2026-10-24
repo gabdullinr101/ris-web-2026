@@ -72,7 +72,7 @@ app.MapGet("/info", (IWebHostEnvironment env) => Results.Ok(new
 {
     name = "Бронирование тренировок · API",
     environment = env.EnvironmentName,
-    version = "ЛР11: вход и права",
+    version = "ЛР12: сквозная сборка",
 }))
     .WithTags("Служебные");
 

@@ -8,6 +8,7 @@ using Npgsql;
 namespace backend.Services;
 
 // Записи хранятся в PostgreSQL через EF Core. Правила процесса и права - здесь, на сервере.
+// В ответе кроме id зала и тренера есть их имена (HallName, AssigneeFullName) - для экрана.
 // Матрица прав - docs/role-matrix.md:
 //   создаёт - администратор; назначает - администратор (запись New) и управляющий;
 //   статус меняет только назначенный тренер своей записи; тренер видит только свои записи.
@@ -26,7 +27,10 @@ public class BookingService : IBookingService
 
     public IReadOnlyList<BookingResponse> GetAll(CurrentUser user)
     {
-        var query = _db.Bookings.AsNoTracking();
+        // Include подтягивает зал и тренера: SQL ... LEFT JOIN halls ... LEFT JOIN users ...
+        IQueryable<Booking> query = _db.Bookings.AsNoTracking()
+            .Include(b => b.Hall)
+            .Include(b => b.AssigneeUser);
 
         // Тренер видит только записи, назначенные ему (ФТ-5).
         // SQL: ... WHERE assignee_user_id = @userId
@@ -45,7 +49,10 @@ public class BookingService : IBookingService
     public ServiceResult<BookingResponse> GetById(int id, CurrentUser user)
     {
         // SQL: SELECT ... FROM bookings WHERE id = @id LIMIT 1
-        var booking = _db.Bookings.AsNoTracking().FirstOrDefault(b => b.Id == id);
+        var booking = _db.Bookings.AsNoTracking()
+            .Include(b => b.Hall)
+            .Include(b => b.AssigneeUser)
+            .FirstOrDefault(b => b.Id == id);
         if (booking == null)
         {
             return ServiceResult<BookingResponse>.NotFound($"Записи с id {id} нет");
@@ -118,7 +125,7 @@ public class BookingService : IBookingService
             return ServiceResult<BookingResponse>.Conflict("Запись с таким номером уже есть, повторите создание");
         }
 
-        return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
+        return ServiceResult<BookingResponse>.Ok(WithNames(booking));
     }
 
     public ServiceResult<BookingResponse> Assign(int id, int assigneeUserId, CurrentUser user)
@@ -158,7 +165,7 @@ public class BookingService : IBookingService
         // Назначение не меняет статус. SQL: UPDATE bookings SET assignee_user_id = @trainer WHERE id = @id
         booking.AssigneeUserId = assigneeUserId;
         _db.SaveChanges();
-        return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
+        return ServiceResult<BookingResponse>.Ok(WithNames(booking));
     }
 
     public ServiceResult<BookingResponse> ChangeStatus(int id, string status, CurrentUser user)
@@ -198,7 +205,16 @@ public class BookingService : IBookingService
         // SQL: UPDATE bookings SET status = @status WHERE id = @id
         booking.Status = status;
         _db.SaveChanges();
-        return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
+        return ServiceResult<BookingResponse>.Ok(WithNames(booking));
+    }
+
+    // Подгрузить зал и тренера, чтобы ответ содержал их имена
+    private BookingResponse WithNames(Booking booking)
+    {
+        var entry = _db.Entry(booking);
+        entry.Reference(b => b.Hall).Load();
+        entry.Reference(b => b.AssigneeUser).Load();
+        return BookingResponse.From(booking);
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex)
