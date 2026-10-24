@@ -1,8 +1,13 @@
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Имена полей в ошибках проверки - как в JSON: title, hallId, description
+builder.Services.AddControllers(options =>
+    options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider()));
+// Ошибки отдаются в одном виде - ProblemDetails, без stack trace
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -11,6 +16,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IBookingService, BookingService>();
 
 var app = builder.Build();
+
+// Любое неожиданное исключение - безопасный ответ 500 в виде ProblemDetails
+app.UseExceptionHandler();
 
 // Swagger доступен только в режиме Development: http://localhost:5000/swagger
 if (app.Environment.IsDevelopment())
@@ -36,7 +44,7 @@ app.MapGet("/info", (IWebHostEnvironment env) => Results.Ok(new
 {
     name = "Бронирование тренировок · API",
     environment = env.EnvironmentName,
-    version = "ЛР7: каркас Web API",
+    version = "ЛР8: REST записей, данные в памяти",
 }))
     .WithTags("Служебные");
 

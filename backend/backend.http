@@ -1,14 +1,62 @@
-@backend_HostAddress = http://localhost:5000
+@host = http://localhost:5000
 
-GET {{backend_HostAddress}}/health
-
-###
-
-GET {{backend_HostAddress}}/info
+GET {{host}}/health
 
 ###
 
-GET {{backend_HostAddress}}/api/bookings
-Accept: application/json
+GET {{host}}/info
+
+###
+
+# Список записей (пустой - 200 и [])
+GET {{host}}/api/bookings
+
+###
+
+# Создать запись - 201
+POST {{host}}/api/bookings
+Content-Type: application/json
+X-User-Id: 1
+
+{
+  "title": "Персональная тренировка, силовая",
+  "hallId": 2,
+  "description": "Клиент новичок, нужна программа на 4 недели"
+}
+
+###
+
+# Короткий вид тренировки - 400
+POST {{host}}/api/bookings
+Content-Type: application/json
+X-User-Id: 1
+
+{
+  "title": "Сил",
+  "hallId": 2,
+  "description": "Клиент новичок, нужна программа на 4 недели"
+}
+
+###
+
+# Несуществующий id - 404
+GET {{host}}/api/bookings/999999
+
+###
+
+# Назначить тренера - 200, статус остаётся New
+PATCH {{host}}/api/bookings/1/assignee
+Content-Type: application/json
+
+{ "assigneeUserId": 2 }
+
+###
+
+# Перевести в работу назначенным тренером - 200 (без тренера или чужим - 409)
+PATCH {{host}}/api/bookings/1/status
+Content-Type: application/json
+X-User-Id: 2
+
+{ "status": "InProgress" }
 
 ###
