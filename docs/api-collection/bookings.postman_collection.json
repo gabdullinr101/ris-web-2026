@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Бронирование тренировок - записи (ЛР8)",
-    "description": "Импортировать в Postman или Insomnia. Базовый URL: http://localhost:5000. Запускать по порядку на свежем сервере (dotnet run): 02 сохраняет id созданной записи в переменную bookingId, остальные запросы её используют. Кто выполняет действие - заголовок X-User-Id: 1 - администратор, 2 и 3 - тренеры.",
+    "name": "Бронирование тренировок - записи и права (ЛР8, ЛР11)",
+    "description": "Импортировать в Postman или Insomnia. Базовый URL: http://localhost:5000. Вход через cookie: запрос «Вход» ставит cookie fitness_auth, следующие запросы идут от имени этого пользователя (Postman хранит cookie сам). Запускать по порядку: 04 сохраняет id созданной записи в переменную bookingId. Учебные учётки: admin, trainer, trainer2, manager, пароль в переменной password.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,13 +10,69 @@
       "value": "http://localhost:5000"
     },
     {
+      "key": "password",
+      "value": "Fitness2026!"
+    },
+    {
       "key": "bookingId",
       "value": "1"
     }
   ],
   "item": [
     {
-      "name": "01 GET список - 200",
+      "name": "00 Выход (чистый старт) - 200",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{baseUrl}}/api/auth/logout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 POST без входа - 401",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/bookings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Персональная тренировка, силовая\",\n  \"hallId\": 2,\n  \"description\": \"Клиент новичок, нужна программа на 4 недели\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 GET список без входа - 401",
       "request": {
         "method": "GET",
         "header": [],
@@ -28,25 +84,54 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Код 200', () => pm.response.to.have.status(200));",
-              "pm.test('Ответ - массив', () => pm.expect(pm.response.json()).to.be.an('array'));"
+              "pm.test('Код 401', () => pm.response.to.have.status(401));"
             ]
           }
         }
       ]
     },
     {
-      "name": "02 POST создать - 201",
+      "name": "03 Вход: admin - 200",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Вошёл admin', () => pm.expect(pm.response.json().login).to.eql('admin'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 POST создать администратором - 201",
+      "request": {
+        "method": "POST",
+        "header": [
           {
-            "key": "X-User-Id",
-            "value": "1"
+            "key": "Content-Type",
+            "value": "application/json"
           }
         ],
         "url": "{{baseUrl}}/api/bookings",
@@ -81,17 +166,13 @@
       ]
     },
     {
-      "name": "03 POST короткий вид тренировки - 400",
+      "name": "05 POST короткий вид тренировки - 400",
       "request": {
         "method": "POST",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "X-User-Id",
-            "value": "1"
           }
         ],
         "url": "{{baseUrl}}/api/bookings",
@@ -119,7 +200,7 @@
       ]
     },
     {
-      "name": "04 GET несуществующий id - 404",
+      "name": "06 GET несуществующий id - 404",
       "request": {
         "method": "GET",
         "header": [],
@@ -138,7 +219,7 @@
       ]
     },
     {
-      "name": "05 GET созданная запись - 200",
+      "name": "07 GET созданная запись - 200",
       "request": {
         "method": "GET",
         "header": [],
@@ -150,25 +231,153 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Код 200', () => pm.response.to.have.status(200));",
-              "pm.test('Та же запись', () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('bookingId'))));"
+              "pm.test('Код 200', () => pm.response.to.have.status(200));"
             ]
           }
         }
       ]
     },
     {
-      "name": "06 PATCH статус без тренера - 409",
+      "name": "08 PATCH статус администратором - 403",
       "request": {
         "method": "PATCH",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
+          }
+        ],
+        "url": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"InProgress\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Вход: trainer2 - 200",
+      "request": {
+        "method": "POST",
+        "header": [
           {
-            "key": "X-User-Id",
-            "value": "2"
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"trainer2\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Вошёл trainer2', () => pm.expect(pm.response.json().login).to.eql('trainer2'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 POST тренером - 403",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/bookings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Персональная тренировка, силовая\",\n  \"hallId\": 2,\n  \"description\": \"Клиент новичок, нужна программа на 4 недели\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 PATCH назначить тренером - 403",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/bookings/{{bookingId}}/assignee",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"assigneeUserId\": 3\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 PATCH статус без назначенного тренера - 409",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
           }
         ],
         "url": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
@@ -195,7 +404,41 @@
       ]
     },
     {
-      "name": "07 PATCH назначить тренера - 200",
+      "name": "13 Вход: admin - 200",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"admin\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Вошёл admin', () => pm.expect(pm.response.json().login).to.eql('admin'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 PATCH назначить тренера 2 - 200",
       "request": {
         "method": "PATCH",
         "header": [
@@ -233,17 +476,47 @@
       ]
     },
     {
-      "name": "08 PATCH статус чужим тренером - 409",
+      "name": "15 Вход: trainer2 - 200",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"trainer2\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Вошёл trainer2', () => pm.expect(pm.response.json().login).to.eql('trainer2'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 PATCH статус чужой записи - 403",
       "request": {
         "method": "PATCH",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "X-User-Id",
-            "value": "3"
           }
         ],
         "url": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
@@ -263,24 +536,73 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Код 409', () => pm.response.to.have.status(409));"
+              "pm.test('Код 403', () => pm.response.to.have.status(403));"
             ]
           }
         }
       ]
     },
     {
-      "name": "09 PATCH статус своим тренером - 200",
+      "name": "17 GET чужая запись - 403",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Вход: trainer - 200",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"trainer\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Вошёл trainer', () => pm.expect(pm.response.json().login).to.eql('trainer'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 PATCH статус своей записи - 200",
       "request": {
         "method": "PATCH",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "X-User-Id",
-            "value": "2"
           }
         ],
         "url": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
@@ -301,27 +623,20 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Код 200', () => pm.response.to.have.status(200));",
-              "pm.test('Статус InProgress, тренер тот же', () => {",
-              "  pm.expect(pm.response.json().status).to.eql('InProgress');",
-              "  pm.expect(pm.response.json().assigneeUserId).to.eql(2);",
-              "});"
+              "pm.test('Статус InProgress', () => pm.expect(pm.response.json().status).to.eql('InProgress'));"
             ]
           }
         }
       ]
     },
     {
-      "name": "10 PATCH недопустимый переход InProgress → New - 409",
+      "name": "20 PATCH недопустимый переход InProgress → New - 409",
       "request": {
         "method": "PATCH",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "X-User-Id",
-            "value": "2"
           }
         ],
         "url": "{{baseUrl}}/api/bookings/{{bookingId}}/status",
@@ -342,6 +657,78 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Код 409', () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 GET список тренера - только свои",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/bookings"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));",
+              "pm.test('Все записи назначены тренеру 2', () => pm.response.json().forEach(b => pm.expect(b.assigneeUserId).to.eql(2)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 Выход - 200",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{baseUrl}}/api/auth/logout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 POST после выхода - 401",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/bookings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Персональная тренировка, силовая\",\n  \"hallId\": 2,\n  \"description\": \"Клиент новичок, нужна программа на 4 недели\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Код 401', () => pm.response.to.have.status(401));"
             ]
           }
         }

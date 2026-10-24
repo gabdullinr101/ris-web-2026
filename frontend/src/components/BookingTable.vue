@@ -15,6 +15,7 @@ defineProps({
         <th scope="col">Номер</th>
         <th scope="col">Вид тренировки (title)</th>
         <th scope="col">Зал (hallId)</th>
+        <th scope="col">Описание</th>
         <th scope="col">Статус</th>
       </tr>
     </thead>
@@ -23,6 +24,8 @@ defineProps({
         <td>{{ item.number }}</td>
         <td>{{ item.title }}</td>
         <td>{{ item.hallId }}</td>
+        <!-- Только интерполяция {{ }}, не v-html: текст вроде <script> показывается как текст -->
+        <td>{{ item.description }}</td>
         <td>{{ item.status }}</td>
       </tr>
     </tbody>

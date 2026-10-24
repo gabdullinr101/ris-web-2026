@@ -1,5 +1,10 @@
 <script setup>
+import { onMounted } from 'vue'
 import AppHeader from './components/AppHeader.vue'
+import { loadCurrentUser } from './authStore'
+
+// При открытии страницы спрашиваем сервер, вошёл ли пользователь (cookie живёт и после F5)
+onMounted(loadCurrentUser)
 </script>
 
 <template>

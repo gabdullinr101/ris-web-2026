@@ -1,10 +1,20 @@
+<script setup>
+import { currentUser, roleNames } from '../authStore'
+</script>
+
 <template>
   <header class="top">
-    <p class="brand">Бронирование тренировок</p>
+    <div>
+      <p class="brand">Бронирование тренировок</p>
+      <p v-if="currentUser" class="who">
+        {{ currentUser.fullName }} · {{ roleNames[currentUser.role] }}
+      </p>
+    </div>
     <nav aria-label="Экраны">
       <router-link to="/">Список</router-link>
-      <router-link to="/new">Создать</router-link>
-      <router-link to="/login">Вход</router-link>
+      <!-- Подсказка для экрана: создаёт администратор. Запрет всё равно проверяет сервер (403). -->
+      <router-link v-if="!currentUser || currentUser.role === 'Admin'" to="/new">Создать</router-link>
+      <router-link to="/login">{{ currentUser ? 'Выход' : 'Вход' }}</router-link>
     </nav>
   </header>
 </template>
@@ -23,6 +33,12 @@
   margin: 0;
   font-size: 22px;
   font-weight: 700;
+}
+
+.who {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: #51606f;
 }
 
 nav {

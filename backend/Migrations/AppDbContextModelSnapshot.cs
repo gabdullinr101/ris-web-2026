@@ -187,6 +187,7 @@ namespace backend.Migrations
                             Id = 1,
                             FullName = "Анна Ковалёва",
                             Login = "admin",
+                            PasswordHash = "AQAAAAIAAYagAAAAEAw/EGtrNeEt1C9Uo7lWtpUMvIsHVMeTfWUsHnApVx7Mu1EXYmWv0scWDnyEmL4hvA==",
                             Role = "Admin"
                         },
                         new
@@ -194,6 +195,7 @@ namespace backend.Migrations
                             Id = 2,
                             FullName = "Илья Соколов",
                             Login = "trainer",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDcgI/aryuvEd4XMzMXz53H0v9Duh1xsLmHnVYGb9eYwM7lXFkh3gzPnt3L7vaLy7Q==",
                             Role = "Trainer"
                         },
                         new
@@ -201,6 +203,7 @@ namespace backend.Migrations
                             Id = 3,
                             FullName = "Марат Хайруллин",
                             Login = "trainer2",
+                            PasswordHash = "AQAAAAIAAYagAAAAEO39nFcWqFHojE5/9bd3ciqh887qf639LgbPU2WF+YEnHDl+0XcIg4oCKgDRy6FRQw==",
                             Role = "Trainer"
                         },
                         new
@@ -208,6 +211,7 @@ namespace backend.Migrations
                             Id = 4,
                             FullName = "Ольга Петрова",
                             Login = "manager",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDiJbFxktscOqHrVrk/CWkxC0w2J/l0JxsNBRKdueSBOAMlU6Cjs7mItGbmS61stkQ==",
                             Role = "Manager"
                         });
                 });

@@ -44,11 +44,29 @@ public class AppDbContext : DbContext
             user.Property(u => u.PasswordHash).HasColumnName("password_hash");
             user.HasIndex(u => u.Login).IsUnique().HasDatabaseName("users_login_key");
 
+            // Учебные учётки (пароль у всех Fitness2026!, см. README). В базе - только hash,
+            // посчитанный PasswordHasher из ASP.NET Identity (PBKDF2, соль, 100 000 итераций).
             user.HasData(
-                new User { Id = 1, Login = "admin", FullName = "Анна Ковалёва", Role = UserRoles.Admin },
-                new User { Id = 2, Login = "trainer", FullName = "Илья Соколов", Role = UserRoles.Trainer },
-                new User { Id = 3, Login = "trainer2", FullName = "Марат Хайруллин", Role = UserRoles.Trainer },
-                new User { Id = 4, Login = "manager", FullName = "Ольга Петрова", Role = UserRoles.Manager });
+                new User
+                {
+                    Id = 1, Login = "admin", FullName = "Анна Ковалёва", Role = UserRoles.Admin,
+                    PasswordHash = "AQAAAAIAAYagAAAAEAw/EGtrNeEt1C9Uo7lWtpUMvIsHVMeTfWUsHnApVx7Mu1EXYmWv0scWDnyEmL4hvA==",
+                },
+                new User
+                {
+                    Id = 2, Login = "trainer", FullName = "Илья Соколов", Role = UserRoles.Trainer,
+                    PasswordHash = "AQAAAAIAAYagAAAAEDcgI/aryuvEd4XMzMXz53H0v9Duh1xsLmHnVYGb9eYwM7lXFkh3gzPnt3L7vaLy7Q==",
+                },
+                new User
+                {
+                    Id = 3, Login = "trainer2", FullName = "Марат Хайруллин", Role = UserRoles.Trainer,
+                    PasswordHash = "AQAAAAIAAYagAAAAEO39nFcWqFHojE5/9bd3ciqh887qf639LgbPU2WF+YEnHDl+0XcIg4oCKgDRy6FRQw==",
+                },
+                new User
+                {
+                    Id = 4, Login = "manager", FullName = "Ольга Петрова", Role = UserRoles.Manager,
+                    PasswordHash = "AQAAAAIAAYagAAAAEDiJbFxktscOqHrVrk/CWkxC0w2J/l0JxsNBRKdueSBOAMlU6Cjs7mItGbmS61stkQ==",
+                });
         });
 
         modelBuilder.Entity<Booking>(booking =>

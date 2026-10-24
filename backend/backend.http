@@ -8,15 +8,22 @@ GET {{host}}/info
 
 ###
 
-# Список записей (пустой - 200 и [])
+# Без входа - 401
 GET {{host}}/api/bookings
+
+###
+
+# Вход администратором - 200, сервер ставит cookie fitness_auth
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "login": "admin", "password": "Fitness2026!" }
 
 ###
 
 # Создать запись - 201
 POST {{host}}/api/bookings
 Content-Type: application/json
-X-User-Id: 1
 
 {
   "title": "Персональная тренировка, силовая",
@@ -29,7 +36,6 @@ X-User-Id: 1
 # Короткий вид тренировки - 400
 POST {{host}}/api/bookings
 Content-Type: application/json
-X-User-Id: 1
 
 {
   "title": "Сил",
@@ -52,11 +58,22 @@ Content-Type: application/json
 
 ###
 
-# Перевести в работу назначенным тренером - 200 (без тренера или чужим - 409)
+# Вход назначенным тренером
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "login": "trainer", "password": "Fitness2026!" }
+
+###
+
+# Перевести в работу - 200 (чужая запись - 403, без тренера - 409)
 PATCH {{host}}/api/bookings/1/status
 Content-Type: application/json
-X-User-Id: 2
 
 { "status": "InProgress" }
+
+###
+
+POST {{host}}/api/auth/logout
 
 ###

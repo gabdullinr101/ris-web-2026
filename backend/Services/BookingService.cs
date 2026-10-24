@@ -1,3 +1,4 @@
+using backend.Auth;
 using backend.Data;
 using backend.Dtos;
 using backend.Models;
@@ -6,8 +7,10 @@ using Npgsql;
 
 namespace backend.Services;
 
-// Записи хранятся в PostgreSQL через EF Core (ЛР10). После перезапуска сервера они на месте.
-// Правила процесса (переходы статусов, кто двигает запись) живут здесь, а не в контроллере.
+// Записи хранятся в PostgreSQL через EF Core. Правила процесса и права - здесь, на сервере.
+// Матрица прав - docs/role-matrix.md:
+//   создаёт - администратор; назначает - администратор (запись New) и управляющий;
+//   статус меняет только назначенный тренер своей записи; тренер видит только свои записи.
 public class BookingService : IBookingService
 {
     private readonly AppDbContext _db;
@@ -21,18 +24,25 @@ public class BookingService : IBookingService
         _environment = environment;
     }
 
-    public IReadOnlyList<BookingResponse> GetAll()
+    public IReadOnlyList<BookingResponse> GetAll(CurrentUser user)
     {
-        // SQL: SELECT ... FROM bookings ORDER BY id
-        return _db.Bookings
-            .AsNoTracking()
+        var query = _db.Bookings.AsNoTracking();
+
+        // Тренер видит только записи, назначенные ему (ФТ-5).
+        // SQL: ... WHERE assignee_user_id = @userId
+        if (user.Role == UserRoles.Trainer)
+        {
+            query = query.Where(b => b.AssigneeUserId == user.Id);
+        }
+
+        return query
             .OrderBy(b => b.Id)
             .AsEnumerable()
             .Select(BookingResponse.From)
             .ToList();
     }
 
-    public ServiceResult<BookingResponse> GetById(int id)
+    public ServiceResult<BookingResponse> GetById(int id, CurrentUser user)
     {
         // SQL: SELECT ... FROM bookings WHERE id = @id LIMIT 1
         var booking = _db.Bookings.AsNoTracking().FirstOrDefault(b => b.Id == id);
@@ -40,11 +50,21 @@ public class BookingService : IBookingService
         {
             return ServiceResult<BookingResponse>.NotFound($"Записи с id {id} нет");
         }
+        if (user.Role == UserRoles.Trainer && booking.AssigneeUserId != user.Id)
+        {
+            return ServiceResult<BookingResponse>.Forbidden("Это запись другого тренера");
+        }
         return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
     }
 
-    public ServiceResult<BookingResponse> Create(CreateBookingRequest request, int currentUserId)
+    public ServiceResult<BookingResponse> Create(CreateBookingRequest request, CurrentUser user)
     {
+        // Создаёт только администратор ресепшн
+        if (user.Role != UserRoles.Admin)
+        {
+            return ServiceResult<BookingResponse>.Forbidden("Создавать записи может только администратор");
+        }
+
         // Длину проверяет ещё DTO, но строку из пробелов он пропустит - поэтому проверяем после Trim
         var title = request.Title.Trim();
         var description = request.Description.Trim();
@@ -60,10 +80,6 @@ public class BookingService : IBookingService
         if (!_db.Halls.Any(h => h.Id == request.HallId))
         {
             return ServiceResult<BookingResponse>.Invalid("hallId", "Зал с таким номером не найден");
-        }
-        if (!_db.Users.Any(u => u.Id == currentUserId))
-        {
-            return ServiceResult<BookingResponse>.Invalid("X-User-Id", "Пользователь с таким номером не найден");
         }
 
         // Учебный сбой для проверки лога (ЛР8). Только в Development и только с Debug__FailCreate=true.
@@ -83,7 +99,7 @@ public class BookingService : IBookingService
             HallId = request.HallId,
             Description = description,
             Status = BookingStatuses.New,
-            CreatedByUserId = currentUserId,
+            CreatedByUserId = user.Id,
             AssigneeUserId = null,
             CreatedAt = DateTime.UtcNow,
         };
@@ -105,8 +121,14 @@ public class BookingService : IBookingService
         return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
     }
 
-    public ServiceResult<BookingResponse> Assign(int id, int assigneeUserId)
+    public ServiceResult<BookingResponse> Assign(int id, int assigneeUserId, CurrentUser user)
     {
+        // Назначают администратор и управляющий. Тренер - нет.
+        if (user.Role != UserRoles.Admin && user.Role != UserRoles.Manager)
+        {
+            return ServiceResult<BookingResponse>.Forbidden("Назначать тренера может администратор или управляющий");
+        }
+
         var booking = _db.Bookings.FirstOrDefault(b => b.Id == id);
         if (booking == null)
         {
@@ -126,24 +148,31 @@ public class BookingService : IBookingService
                 $"Нельзя назначить тренера: запись в статусе {booking.Status}");
         }
 
+        // Администратор назначает только новой записи (ФТ-3), переназначает запись в работе управляющий (ФТ-4)
+        if (user.Role == UserRoles.Admin && booking.Status != BookingStatuses.New)
+        {
+            return ServiceResult<BookingResponse>.Conflict(
+                "Администратор назначает тренера только записи в статусе New, переназначает управляющий");
+        }
+
         // Назначение не меняет статус. SQL: UPDATE bookings SET assignee_user_id = @trainer WHERE id = @id
         booking.AssigneeUserId = assigneeUserId;
         _db.SaveChanges();
         return ServiceResult<BookingResponse>.Ok(BookingResponse.From(booking));
     }
 
-    public ServiceResult<BookingResponse> ChangeStatus(int id, string status, int currentUserId)
+    public ServiceResult<BookingResponse> ChangeStatus(int id, string status, CurrentUser user)
     {
+        // Статус меняет только тренер. Кто создаёт - тот не меняет статус (ЛР1).
+        if (user.Role != UserRoles.Trainer)
+        {
+            return ServiceResult<BookingResponse>.Forbidden("Менять статус может только тренер");
+        }
+
         var booking = _db.Bookings.FirstOrDefault(b => b.Id == id);
         if (booking == null)
         {
             return ServiceResult<BookingResponse>.NotFound($"Записи с id {id} нет");
-        }
-
-        if (!BookingStatuses.CanMove(booking.Status, status))
-        {
-            return ServiceResult<BookingResponse>.Conflict(
-                $"Переход {booking.Status} → {status} недопустим");
         }
 
         if (booking.AssigneeUserId == null)
@@ -152,11 +181,18 @@ public class BookingService : IBookingService
                 "Нельзя менять статус: тренер ещё не назначен");
         }
 
-        // Статус двигает только назначенный тренер. Настоящий вход и 403 будут в ЛР11.
-        if (booking.AssigneeUserId != currentUserId)
+        // Чужая запись: тренер вошёл, но запись назначена другому - 403.
+        // Проверка здесь, на сервере: подставить чужой id в адрес не поможет.
+        if (booking.AssigneeUserId != user.Id)
+        {
+            return ServiceResult<BookingResponse>.Forbidden(
+                "Менять статус может только тренер, назначенный на эту запись");
+        }
+
+        if (!BookingStatuses.CanMove(booking.Status, status))
         {
             return ServiceResult<BookingResponse>.Conflict(
-                "Менять статус может только тренер, назначенный на эту запись");
+                $"Переход {booking.Status} → {status} недопустим");
         }
 
         // SQL: UPDATE bookings SET status = @status WHERE id = @id

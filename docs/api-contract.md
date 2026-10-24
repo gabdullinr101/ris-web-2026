@@ -4,12 +4,17 @@
 
 | Метод и путь                      | Тело                       | Успех                        | Возможная ошибка        |
 | --------------------------------- | -------------------------- | ---------------------------- | ----------------------- |
-| POST /api/auth/login              | login, password            | 200, токен и роль            | 401                     |
+| POST /api/auth/login              | login, password            | 200, пользователь и роль; cookie входа | 401           |
+| POST /api/auth/logout             | -                          | 200, cookie удалена          | -                       |
+| GET /api/auth/me                  | -                          | 200, кто вошёл               | 401                     |
+| GET /api/users/trainers           | -                          | 200, список тренеров         | 401, 403                |
 | GET /api/bookings                 | -                          | 200, массив или []           | 401                     |
 | GET /api/bookings/{id}            | -                          | 200, объект                  | 401, 403, 404           |
 | POST /api/bookings                | title, hallId, description | 201, id, number, status: New | 400, 401, 403           |
-| PATCH /api/bookings/{id}/assignee | assigneeUserId             | 200, объект                  | 400, 401, 403, 404      |
+| PATCH /api/bookings/{id}/assignee | assigneeUserId             | 200, объект                  | 400, 401, 403, 404, 409 |
 | PATCH /api/bookings/{id}/status   | status                     | 200, объект                  | 400, 401, 403, 404, 409 |
+
+Вход - через cookie `fitness_auth` (ЛР11): после `POST /api/auth/login` браузер сам присылает её с каждым запросом. Без входа все адреса `/api/bookings` отвечают 401.
 
 Правила:
 - При создании клиент не присылает id, number, status и тренера. Их определяет сервер.

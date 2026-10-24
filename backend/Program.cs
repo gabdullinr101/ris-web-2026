@@ -1,6 +1,9 @@
-using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
+using backend.Auth;
 using backend.Data;
+using backend.Models;
 using backend.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +25,26 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 // Scoped - свой экземпляр на каждый HTTP-запрос, как и у DbContext.
 builder.Services.AddScoped<IBookingService, BookingService>();
 
+// Вход через cookie и hash паролей библиотекой ASP.NET Identity (ЛР11)
+builder.Services.AddCookieLogin();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+// CORS: ответы API может читать только наш клиент Vue. Не "*", потому что cookie входа.
+const string ClientCors = "client";
+var clientOrigin = builder.Configuration["ClientOrigin"] ?? "http://localhost:5173";
+builder.Services.AddCors(options =>
+    options.AddPolicy(ClientCors, policy => policy
+        .WithOrigins(clientOrigin)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()));
+
 var app = builder.Build();
 
 // Любое неожиданное исключение - безопасный ответ 500 в виде ProblemDetails
 app.UseExceptionHandler();
+// Пустые ответы 401 и 403 тоже получают тело ProblemDetails
+app.UseStatusCodePages();
 
 // Swagger доступен только в режиме Development: http://localhost:5000/swagger
 if (app.Environment.IsDevelopment())
@@ -36,13 +55,15 @@ if (app.Environment.IsDevelopment())
 
 // Перенаправление на HTTPS из шаблона не включаю: проверка курса идёт по http://localhost:5000.
 
+app.UseCors(ClientCors);
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 // Служебные адреса. Записи на тренировку они не принимают и не создают.
 
-// GET /health - только «процесс жив». Не доказывает, что создание записей работает (оно будет в ЛР8).
+// GET /health - только «процесс жив». Не доказывает, что создание записей (POST /api/bookings) работает.
 app.MapGet("/health", () => Results.Text("ok"))
     .WithTags("Служебные");
 
@@ -51,7 +72,7 @@ app.MapGet("/info", (IWebHostEnvironment env) => Results.Ok(new
 {
     name = "Бронирование тренировок · API",
     environment = env.EnvironmentName,
-    version = "ЛР10: записи в PostgreSQL через EF Core",
+    version = "ЛР11: вход и права",
 }))
     .WithTags("Служебные");
 

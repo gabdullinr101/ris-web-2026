@@ -1,14 +1,17 @@
+using backend.Auth;
 using backend.Dtos;
 using backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Controllers;
 
 // Записи на тренировку. Контроллер тонкий: принял HTTP, вызвал сервис, вернул код.
-// Правила процесса - в BookingService. Сервис приходит через DI, не через new.
+// Без входа любой адрес отвечает 401 ([Authorize]). Права по ролям проверяет сервис - 403.
 [ApiController]
 [Route("api/bookings")]
 [Produces("application/json")]
+[Authorize]
 public class BookingsController : ControllerBase
 {
     private readonly IBookingService _service;
@@ -20,40 +23,41 @@ public class BookingsController : ControllerBase
         _logger = logger;
     }
 
-    // GET /api/bookings - список. Пустой список - тоже 200 и [].
+    // Кто выполняет запрос - из cookie входа
+    private CurrentUser Me => CurrentUser.From(User);
+
+    // GET /api/bookings - список. Тренер видит только свои. Пустой список - 200 и [].
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<BookingResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public ActionResult<IReadOnlyList<BookingResponse>> GetAll()
     {
-        return Ok(_service.GetAll());
+        return Ok(_service.GetAll(Me));
     }
 
-    // GET /api/bookings/{id} - одна запись или 404.
+    // GET /api/bookings/{id} - одна запись, 403 на чужую для тренера, 404 если нет.
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(BookingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public ActionResult<BookingResponse> GetById(int id)
     {
-        return ToActionResult(_service.GetById(id));
+        return ToActionResult(_service.GetById(id, Me));
     }
 
-    // POST /api/bookings - создать. Кто создаёт - заголовок X-User-Id (настоящий вход в ЛР11).
+    // POST /api/bookings - создать. Только администратор.
     [HttpPost]
     [ProducesResponseType(typeof(BookingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-    public ActionResult<BookingResponse> Create(
-        [FromBody] CreateBookingRequest request,
-        [FromHeader(Name = "X-User-Id")] int? userId)
+    public ActionResult<BookingResponse> Create([FromBody] CreateBookingRequest request)
     {
-        if (userId == null)
-        {
-            return MissingUserId();
-        }
-
         try
         {
-            var result = _service.Create(request, userId.Value);
+            var result = _service.Create(request, Me);
             if (result.Kind == ResultKind.Ok)
             {
                 return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
@@ -75,35 +79,26 @@ public class BookingsController : ControllerBase
     [HttpPatch("{id:int}/assignee")]
     [ProducesResponseType(typeof(BookingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public ActionResult<BookingResponse> Assign(int id, [FromBody] AssignBookingRequest request)
     {
-        return ToActionResult(_service.Assign(id, request.AssigneeUserId!.Value));
+        return ToActionResult(_service.Assign(id, request.AssigneeUserId!.Value, Me));
     }
 
     // PATCH /api/bookings/{id}/status - сменить статус. Тренера не меняет.
     [HttpPatch("{id:int}/status")]
     [ProducesResponseType(typeof(BookingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public ActionResult<BookingResponse> ChangeStatus(
-        int id,
-        [FromBody] ChangeBookingStatusRequest request,
-        [FromHeader(Name = "X-User-Id")] int? userId)
+    public ActionResult<BookingResponse> ChangeStatus(int id, [FromBody] ChangeBookingStatusRequest request)
     {
-        if (userId == null)
-        {
-            return MissingUserId();
-        }
-        return ToActionResult(_service.ChangeStatus(id, request.Status, userId.Value));
-    }
-
-    private ActionResult MissingUserId()
-    {
-        ModelState.AddModelError("X-User-Id", "Укажите заголовок X-User-Id - номер пользователя");
-        return ValidationProblem(ModelState);
+        return ToActionResult(_service.ChangeStatus(id, request.Status, Me));
     }
 
     private ActionResult InvalidFields(Dictionary<string, string[]> errors)
@@ -125,6 +120,8 @@ public class BookingsController : ControllerBase
         {
             ResultKind.Ok => Ok(result.Value),
             ResultKind.Invalid => InvalidFields(result.Errors),
+            ResultKind.Forbidden => Problem(statusCode: StatusCodes.Status403Forbidden,
+                title: "Недостаточно прав", detail: result.Message),
             ResultKind.NotFound => Problem(statusCode: StatusCodes.Status404NotFound,
                 title: "Не найдено", detail: result.Message),
             ResultKind.Conflict => Problem(statusCode: StatusCodes.Status409Conflict,
