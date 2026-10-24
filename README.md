@@ -80,6 +80,29 @@ dotnet run
 - `/health` проверяет только, что процесс сервера жив, и не доказывает, что создание записи работает;
 - клиент Vue к серверу ещё не подключён (по-прежнему работает на mock), стыковка - в ЛР12.
 
+## База данных (ЛР9)
+
+Нужен PostgreSQL 14 или новее (pgAdmin ставится вместе с ним). Пароль пользователя `postgres` - тот, что задали при установке; в файлы проекта его не кладём.
+
+Скрипты в папке `db`:
+
+- `schema.sql` - таблицы `halls`, `users`, `bookings`, ключи, CHECK статусов, индексы. Можно прогонять повторно: в начале удаляет только свои три таблицы;
+- `seed.sql` - учебные данные: 3 зала, 4 пользователя, 8 записей во всех четырёх статусах;
+- `queries.sql` - запросы: фильтр с сортировкой, JOIN, GROUP BY и проверка ограничений (последние три вставки должны завершиться ошибкой - так и задумано).
+
+Из корня репозитория (если `psql` не находится, укажите полный путь, например `"C:\Program Files\PostgreSQL\16\bin\psql.exe"`):
+
+```bash
+createdb -U postgres fitness_bookings
+psql -U postgres -d fitness_bookings -f db/schema.sql
+psql -U postgres -d fitness_bookings -f db/seed.sql
+psql -U postgres -d fitness_bookings -f db/queries.sql
+```
+
+В pgAdmin: создать базу `fitness_bookings` → Query Tool → открыть и выполнить по очереди `schema.sql`, `seed.sql`, `queries.sql`.
+
+Сервер пока к базе не подключён и хранит записи в памяти - это ЛР10.
+
 ## Документы
 - [Заявка на тему](docs/project-proposal.md)
 - [Требования (ЛР1)](docs/lab-01-requirements.md)
@@ -93,3 +116,4 @@ dotnet run
 - [Клиент: API-модуль, mock и состояния экранов (ЛР6)](docs/reports/lab-06.md)
 - [Сервер: каркас ASP.NET Core Web API (ЛР7)](docs/reports/lab-07.md)
 - [Сервер: REST записей и проверка полей (ЛР8)](docs/reports/lab-08.md)
+- [База данных: PostgreSQL и SQL (ЛР9)](docs/reports/lab-09.md)
