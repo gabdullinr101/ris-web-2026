@@ -12,7 +12,7 @@ const form = ref({
   description: '',
 })
 
-// Тексты ошибок по полям. Пустая строка — ошибки нет.
+// Тексты ошибок по полям. Пустая строка - ошибки нет.
 const errors = ref({
   title: '',
   hallId: '',
@@ -72,7 +72,7 @@ async function onCreate() {
     router.push('/')
   } catch (error) {
     formError.value = errorMessage(error)
-    // При ответе 400 сервер присылает ошибки по полям — показываем их под полями
+    // При ответе 400 сервер присылает ошибки по полям - показываем их под полями
     if (error.status === 400 && error.data?.errors) {
       errors.value = { ...errors.value, ...error.data.errors }
     }
@@ -87,7 +87,7 @@ async function onCreate() {
 <template>
   <h1>Новая запись на тренировку</h1>
   <form @submit.prevent="onCreate">
-    <label for="title">Вид тренировки, 5–80 символов</label>
+    <label for="title">Вид тренировки, 5-80 символов</label>
     <input id="title" ref="titleInput" v-model="form.title" name="title" type="text" autofocus />
     <p v-if="errors.title" class="error">{{ errors.title }}</p>
 
@@ -95,7 +95,7 @@ async function onCreate() {
     <input id="hallId" v-model.number="form.hallId" name="hallId" type="number" />
     <p v-if="errors.hallId" class="error">{{ errors.hallId }}</p>
 
-    <label for="description">Описание, 10–500 символов</label>
+    <label for="description">Описание, 10-500 символов</label>
     <textarea id="description" v-model="form.description" name="description" rows="4"></textarea>
     <p v-if="errors.description" class="error">{{ errors.description }}</p>
 

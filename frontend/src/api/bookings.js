@@ -1,13 +1,13 @@
 import { mockGetBookings, mockCreateBooking } from './mockBookings'
 
-// true — отвечает mock (без HTTP), false — настоящий запрос fetch к серверу
+// true - отвечает mock (без HTTP), false - настоящий запрос fetch к серверу
 const USE_MOCK = true
 
 // Адрес сервера задан только здесь, берётся из файла .env
 const baseUrl = import.meta.env.VITE_API_BASE_URL
 
 // Настоящий HTTP-запрос. Возвращает ответ в том же виде, что и mock: { ok, status, data }.
-// Если сервер недоступен, fetch сам выбросит ошибку — она уйдёт в catch на странице.
+// Если сервер недоступен, fetch сам выбросит ошибку - она уйдёт в catch на странице.
 async function send(method, path, body) {
   const options = { method }
   if (body !== undefined) {
@@ -27,7 +27,7 @@ async function send(method, path, body) {
   return { ok: response.ok, status: response.status, data }
 }
 
-// Ответы 400 и 500 — это тоже ответы, в catch они сами не попадают.
+// Ответы 400 и 500 - это тоже ответы, в catch они сами не попадают.
 // Поэтому проверяем ok и выбрасываем ошибку с HTTP-статусом.
 function unwrap(response) {
   if (!response.ok) {
@@ -61,6 +61,6 @@ export function errorMessage(error) {
   if (error.status) {
     return 'Сервер не смог обработать запрос'
   }
-  // статуса нет — ответа не было вообще
+  // статуса нет - ответа не было вообще
   return 'Нет связи с сервером'
 }
