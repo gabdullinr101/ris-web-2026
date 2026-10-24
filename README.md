@@ -32,7 +32,39 @@ npm run dev
 
 ## Запуск сервера
 
-Нужен .NET SDK 8 или новее. Проверка: `dotnet --version`.
+Нужны .NET SDK 8 или новее (`dotnet --version`) и PostgreSQL (см. раздел «База данных» ниже). С ЛР10 сервер хранит записи в PostgreSQL через EF Core.
+
+### Подготовка (один раз)
+
+1. Инструмент миграций:
+
+   ```bash
+   dotnet tool install --global dotnet-ef --version 8.0.*
+   ```
+
+   Если пишет, что уже установлен, - всё в порядке.
+
+2. Строка подключения с паролем - только локально, через user-secrets (в репозиторий не попадает). Хост, порт и пароль - свои: порт виден в pgAdmin → сервер → Properties → Connection.
+
+   ```bash
+   cd backend
+   dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=fitness_bookings;Username=postgres;Password=ВАШ_ПАРОЛЬ"
+   ```
+
+   В `appsettings.json` лежит та же строка без пароля - как пример.
+
+3. Если база `fitness_bookings` уже создана скриптами ЛР9, удалите её (pgAdmin → правой кнопкой по базе → Delete, или `dropdb -U postgres fitness_bookings`). Миграция создаст базу и таблицы сама.
+
+4. Применить миграции:
+
+   ```bash
+   cd backend
+   dotnet ef database update
+   ```
+
+   Создаются таблицы `halls`, `users`, `bookings` и справочные строки: 3 зала и 4 пользователя.
+
+### Запуск
 
 ```bash
 cd backend
@@ -76,7 +108,6 @@ dotnet run
 
 Ограничения:
 
-- данные записей пока в памяти, после перезапуска сервера пропадут;
 - `/health` проверяет только, что процесс сервера жив, и не доказывает, что создание записи работает;
 - клиент Vue к серверу ещё не подключён (по-прежнему работает на mock), стыковка - в ЛР12.
 
@@ -101,7 +132,7 @@ psql -U postgres -d fitness_bookings -f db/queries.sql
 
 В pgAdmin: создать базу `fitness_bookings` → Query Tool → открыть и выполнить по очереди `schema.sql`, `seed.sql`, `queries.sql`.
 
-Сервер пока к базе не подключён и хранит записи в памяти - это ЛР10.
+Скрипты `db` - учебная справка по схеме (ЛР9). Рабочую базу для сервера создаёт миграция EF Core (см. «Запуск сервера»); имена таблиц и столбцов у них одинаковые, поэтому `queries.sql` можно выполнять и на базе сервера.
 
 ## Документы
 - [Заявка на тему](docs/project-proposal.md)
@@ -117,3 +148,4 @@ psql -U postgres -d fitness_bookings -f db/queries.sql
 - [Сервер: каркас ASP.NET Core Web API (ЛР7)](docs/reports/lab-07.md)
 - [Сервер: REST записей и проверка полей (ЛР8)](docs/reports/lab-08.md)
 - [База данных: PostgreSQL и SQL (ЛР9)](docs/reports/lab-09.md)
+- [Сервер: EF Core и PostgreSQL (ЛР10)](docs/reports/lab-10.md)

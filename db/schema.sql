@@ -53,3 +53,6 @@ CREATE INDEX bookings_hall_id_idx ON bookings (hall_id);
 
 -- зачем: тренер видит только свои записи (WHERE assignee_user_id = ...), см. ФТ-5 в ЛР1
 CREATE INDEX bookings_assignee_user_id_idx ON bookings (assignee_user_id);
+
+-- зачем: внешний ключ на создателя записи; такой же индекс создаёт миграция EF Core (ЛР10)
+CREATE INDEX bookings_created_by_user_id_idx ON bookings (created_by_user_id);

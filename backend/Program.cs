@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
+using backend.Data;
 using backend.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,9 +13,14 @@ builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// База PostgreSQL через EF Core. Строка подключения - по ключу ConnectionStrings:Default.
+// Пароль в Git не лежит: он задаётся через dotnet user-secrets (см. README).
+var connectionString = builder.Configuration.GetConnectionString("Default");
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+
 // DI: когда контроллеру нужен IBookingService, он получает BookingService.
-// Singleton - один общий экземпляр на всё приложение, поэтому все запросы видят один список в памяти.
-builder.Services.AddSingleton<IBookingService, BookingService>();
+// Scoped - свой экземпляр на каждый HTTP-запрос, как и у DbContext.
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 var app = builder.Build();
 
@@ -44,7 +51,7 @@ app.MapGet("/info", (IWebHostEnvironment env) => Results.Ok(new
 {
     name = "Бронирование тренировок · API",
     environment = env.EnvironmentName,
-    version = "ЛР8: REST записей, данные в памяти",
+    version = "ЛР10: записи в PostgreSQL через EF Core",
 }))
     .WithTags("Служебные");
 

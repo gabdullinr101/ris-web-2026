@@ -11,4 +11,7 @@ public class User
 
     // Admin - администратор ресепшн, Trainer - тренер, Manager - управляющий клуба
     public string Role { get; set; } = "";
+
+    // Hash пароля. Заполняется в ЛР11, открытый пароль не хранится.
+    public string? PasswordHash { get; set; }
 }
